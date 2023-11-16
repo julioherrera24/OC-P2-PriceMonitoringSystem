@@ -2,8 +2,15 @@ from requests import get
 from bs4 import BeautifulSoup
 import csv
 
+def 
 
-def extract_first_book(url):
+
+
+
+
+
+
+def extract_book_information(url):
     # gets the HTML code from the site
     page = get(url)
 
@@ -11,7 +18,7 @@ def extract_first_book(url):
         # parse the HTML content using BS
         soup = BeautifulSoup(page.content, 'html.parser')
 
-        # Information about first book
+        # gather the information about first book
         product_page_url = url
         universal_product_code = soup.find("th", string="UPC").find_next("td").string.strip()
         book_title = soup.find("h1").string.strip()
@@ -23,31 +30,32 @@ def extract_first_book(url):
         review_rating = soup.find("p", class_="star-rating")["class"][1]
         image_url = soup.find("img")["src"]
 
-        # print(product_page_url, universal_product_code, title, price_excluding_tax, price_including_tax,
-        # quantity_available, product_description)
-        # print(category, review_rating, image_url)
-
-        # Writing to a CSV file
+        # create a dictionary with the extracted information
+        book_information = {
+            "product_page_url": product_page_url,
+            "universal_product_code": universal_product_code,
+            "book_title": book_title,
+            "price_including_tax": price_including_tax,
+            "price_excluding_tax": price_excluding_tax,
+            "quantity_available": quantity_available,
+            "product_description": product_description,
+            "category": category,
+            "review_rating": review_rating,
+            "image_url": image_url
+        }
+        # Writing to a CSV file using a dictionary
         with open("book_information.csv", "w", newline="") as csvfile:
-            writer = csv.writer(csvfile)
 
-            writer.writerow(["Column_headers", "Information"])
-            writer.writerows([
-                ["product_page_url:", product_page_url],
-                ["universal_product_code:", universal_product_code],
-                ["book_title:", book_title],
-                ["price_including_tax:", price_including_tax],
-                ["price_excluding_tax:", price_excluding_tax],
-                ["quantity_available:", quantity_available],
-                ["product_description:", product_description],
-                ["category:", category],
-                ["review_rating:", review_rating],
-                ["image_url:", image_url]
-            ])
+            column_headers = book_information
+            writer = csv.DictWriter(csvfile, fieldnames=column_headers)
+
+            writer.writeheader()
+            writer.writerow(book_information)
+        print("Successfully gathered information and written to 'book_information.csv'")
     else:
         print("Failed to gather information from book url")
 
 
 # url of the first book on the index page
 book_url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
-extract_first_book(book_url)
+extract_book_information(book_url)

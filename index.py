@@ -30,16 +30,15 @@ def extract_book_url_on_page(url):
 # this function returns a list of all the books url in a category; in all pages
 def books_url_category(category_url):
     all_books_url = []  # list that will hold all urls of books
-    base_url = category_url
     page_number = 1  # use this to iterate through all page numbers
 
     while True:  # infinite loop to scrape all the pages of a book category
         # start at the first page of a category
         if page_number == 1:
-            page_url = base_url
+            page_url = category_url
         else:
-            base_url = "/".join(category_url.rsplit("/")[:-1])
-            page_url = f'{base_url}/page-{page_number}.html'
+            split = category_url.rsplit("/", 1)[0]
+            page_url = f'{split}/page-{page_number}.html'
 
         # returns the list of book url in page url variable
         books_url_on_page = extract_book_url_on_page(page_url)
@@ -98,20 +97,21 @@ def main():
     category_url = "https://books.toscrape.com/catalogue/category/books/sequential-art_5/index.html"
     books_in_category = books_url_category(category_url)
 
+    column_headers = [
+        "product_page_url",
+        "universal_product_code",
+        "book_title",
+        "price_including_tax",
+        "price_excluding_tax",
+        "quantity_available",
+        "product_description",
+        "category",
+        "review_rating",
+        "image_url"
+    ]
+
     # Writing to a CSV file using a dictionary
     with open("book_information.csv", "w", newline="") as csvfile:
-        column_headers = {
-            "product_page_url",
-            "universal_product_code",
-            "book_title",
-            "price_including_tax",
-            "price_excluding_tax",
-            "quantity_available",
-            "product_description",
-            "category",
-            "review_rating",
-            "image_url"
-        }
 
         writer = csv.DictWriter(csvfile, fieldnames=column_headers)
         writer.writeheader()

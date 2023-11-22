@@ -30,15 +30,23 @@ def extract_book_url_on_page(url):
 # this function returns a list of all the books url in a category; in all pages
 def books_url_category(category_url):
     all_books_url = []  # list that will hold all urls of books
+    base_url = category_url
     page_number = 1  # use this to iterate through all page numbers
+
     while True:  # infinite loop to scrape all the pages of a book category
         # start at the first page of a category
-        page_url = f"{category_url}/page-{page_number}.html"
+        if page_number == 1:
+            page_url = base_url
+        else:
+            base_url = "/".join(category_url.rsplit("/")[:-1])
+            page_url = f'{base_url}/page-{page_number}.html'
+
         # returns the list of book url in page url variable
         books_url_on_page = extract_book_url_on_page(page_url)
         # if there are no more books in a page/the page is empty, exit loop
         if not books_url_on_page:
             break
+
         # add books_url_on_page to the all_books_url list
         all_books_url.extend(books_url_on_page)
         page_number = page_number + 1  # move to the next page and continue loop
@@ -79,19 +87,40 @@ def extract_book_information(url):
             "review_rating": review_rating,
             "image_url": image_url
         }
-        # Writing to a CSV file using a dictionary
-        with open("book_information.csv", "w", newline="") as csvfile:
-
-            column_headers = book_information
-            writer = csv.DictWriter(csvfile, fieldnames=column_headers)
-
-            writer.writeheader()
-            writer.writerow(book_information)
         print("Successfully gathered information and written to 'book_information.csv'")
+        return book_information
     else:
         print("Failed to gather information from book url")
+        return None
 
 
-# url of the first book on the index page
-single_book_url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
-extract_book_information(single_book_url)
+def main():
+    category_url = "https://books.toscrape.com/catalogue/category/books/sequential-art_5/index.html"
+    books_in_category = books_url_category(category_url)
+
+    # Writing to a CSV file using a dictionary
+    with open("book_information.csv", "w", newline="") as csvfile:
+        column_headers = {
+            "product_page_url",
+            "universal_product_code",
+            "book_title",
+            "price_including_tax",
+            "price_excluding_tax",
+            "quantity_available",
+            "product_description",
+            "category",
+            "review_rating",
+            "image_url"
+        }
+
+        writer = csv.DictWriter(csvfile, fieldnames=column_headers)
+        writer.writeheader()
+
+        for book_url in books_in_category:
+            book_data = extract_book_information(book_url)
+            if book_data is not None:
+                writer.writerow(book_data)
+
+
+if __name__ == "__main__":
+    main()

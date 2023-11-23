@@ -3,12 +3,10 @@ from bs4 import BeautifulSoup
 import csv
 
 
-# this function returns all of the book url on a category page
-def extract_book_url_on_page(url):
-    page = get(url)  # gets the HTML code from the site
-
-    if page.status_code == 200:  # if the request was successful
-        soup = BeautifulSoup(page.content, 'html.parser')  # parse the HTML content using BS
+def extract_book_url_on_page(url):  # this function returns all of the book url on a category page
+    page = get(url)
+    if page.status_code == 200:
+        soup = BeautifulSoup(page.content, 'html.parser')
         # finds all the books on the page url
         all_books = soup.find_all("article", class_="product_pod")
         book_info = []  # list that will store all the extracted book URLs
@@ -29,28 +27,35 @@ def extract_book_url_on_page(url):
 
 # this function returns a list of all the books url in a category; in all pages
 def books_url_category(category_url):
-    all_books_url = []  # list that will hold all urls of books
-    page_number = 1  # use this to iterate through all page numbers
+    page = get(category_url)
 
-    while True:  # infinite loop to scrape all the pages of a book category
-        # start at the first page of a category
-        if page_number == 1:
-            page_url = category_url
-        else:
-            split = category_url.rsplit("/", 1)[0]
-            page_url = f'{split}/page-{page_number}.html'
+    if page.status_code == 200:
+        soup = BeautifulSoup(page.content, 'html.parser')
+        number_of_pages = soup.find("li", class_="current").get_text(strip=True)  # find the num of pages
+        total_pages = int(number_of_pages.split()[-1])  # max number of pages
+        page_number = 1  # use this to iterate through all page numbers
+        all_books_url = []  # list that will hold all urls of books
 
-        # returns the list of book url in page url variable
-        books_url_on_page = extract_book_url_on_page(page_url)
-        # if there are no more books in a page/the page is empty, exit loop
-        if not books_url_on_page:
-            break
+        while page_number <= total_pages:
+            # start at the first page of a category
+            if page_number == 1:
+                page_url = category_url
+            else:
+                split = category_url.rsplit("/", 1)[0]
+                page_url = f'{split}/page-{page_number}.html'
 
-        # add books_url_on_page to the all_books_url list
-        all_books_url.extend(books_url_on_page)
-        page_number = page_number + 1  # move to the next page and continue loop
+            # returns the list of book url in page url variable
+            books_url_on_page = extract_book_url_on_page(page_url)
+            # if there are no more books in a page/the page is empty, exit loop
+            if not books_url_on_page:
+                break
+            # add books_url_on_page to the all_books_url list
+            all_books_url.extend(books_url_on_page)
+            page_number += 1  # move to the next page and continue loop
 
-    return all_books_url  # return the list with all the books url in that category
+        return all_books_url  # return the list with all the books url in that category
+    else:
+        print("Could not retrieve Category url")
 
 
 # this function extracts all the information in a single book

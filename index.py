@@ -3,6 +3,23 @@ from bs4 import BeautifulSoup
 import csv
 
 
+def extract_all_categories(url):
+    page = get(url)
+
+    if page.status_code == 200:
+        soup = BeautifulSoup(page.content, 'html.parser')
+        all_categories = soup.find("div", class_="side_categories").find_all("a")
+
+        categories = {}
+        for category in all_categories:
+            category_name = category.text.strip()
+            category_url = url.rsplit("/", 1)[0] + "/" + category.get("href")
+            categories[category_name] = category_url
+        return categories
+    else:
+        print("Could not retrieve the url page")
+        return None
+
 def extract_book_url_on_page(url):  # this function returns all of the book url on a category page
     page = get(url)
     if page.status_code == 200:

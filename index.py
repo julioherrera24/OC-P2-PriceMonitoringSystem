@@ -3,22 +3,24 @@ from bs4 import BeautifulSoup
 import csv
 
 
-def extract_all_categories(url):
+def extract_all_categories(url):   # this function will extract all categories available
     page = get(url)
 
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, 'html.parser')
+        # scrapes all categories available in the page, including name and url
         all_categories = soup.find("div", class_="side_categories").find_all("a")
 
-        categories = {}
-        for category in all_categories:
-            category_name = category.text.strip()
-            category_url = url.rsplit("/", 1)[0] + "/" + category.get("href")
+        categories = {}   # dictionary that will hold keys = categories, values = url
+        for category in all_categories:   # loop through all_categories
+            category_name = category.text.strip()   # key = category_name
+            category_url = url.rsplit("/", 1)[0] + "/" + category.get("href")  # value is url
             categories[category_name] = category_url
         return categories
     else:
         print("Could not retrieve the url page")
         return None
+
 
 def extract_book_url_on_page(url):  # this function returns all of the book url on a category page
     page = get(url)
@@ -142,7 +144,6 @@ def main():
             book_data = extract_book_information(book_url)
             if book_data is not None:
                 writer.writerow(book_data)
-
 
 if __name__ == "__main__":
     main()

@@ -24,6 +24,7 @@ def extract_all_categories(url):   # this function will extract all categories a
 
 def extract_book_url_on_page(url):  # this function returns all of the book url on a category page
     page = get(url)
+
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, 'html.parser')
         # finds all the books on the page url
@@ -39,42 +40,41 @@ def extract_book_url_on_page(url):  # this function returns all of the book url 
             book_info.append(absolute_book_url)  # adds the url to the list
 
         return book_info  # returns the list of book URLs in the page
-    else:  # if page could not be loaded, print an error message
-        print("Could not retrieve the url page")
+    else:
         return None
 
 
 # this function returns a list of all the books url in a category; in all pages
 def books_url_category(category_url):
-    page = get(category_url)
+    base_url = category_url   # first page of category
+    next_page_url = category_url.rsplit("/", 1)[0]   # variable to use for the next pages
+    page_number = 1
+    book_links = []    # list to hold all of the book urls in category
 
-    if page.status_code == 200:
-        soup = BeautifulSoup(page.content, 'html.parser')
-        number_of_pages = soup.find("li", class_="current").get_text(strip=True)  # find the num of pages
-        total_pages = int(number_of_pages.split()[-1])  # max number of pages
-        page_number = 1  # use this to iterate through all page numbers
-        all_books_url = []  # list that will hold all urls of books
+    while True:  # iterate until a page does not contain the next button
+        current_url = f"{next_page_url}/page-{page_number}.html" if page_number > 1 else base_url
+        page = get(current_url)
 
-        while page_number <= total_pages:
-            # start at the first page of a category
-            if page_number == 1:
-                page_url = category_url
+        if page.status_code == 200:
+            # call function to get list of all books in the current page
+            book_links_on_page = extract_book_url_on_page(current_url)
+            if book_links_on_page:
+                # if there are book urls in the list, add them to book_links
+                book_links.extend(book_links_on_page)
             else:
-                split = category_url.rsplit("/", 1)[0]
-                page_url = f'{split}/page-{page_number}.html'
-
-            # returns the list of book url in page url variable
-            books_url_on_page = extract_book_url_on_page(page_url)
-            # if there are no more books in a page/the page is empty, exit loop
-            if not books_url_on_page:
+                # if there weren't any books, break out of the loop
                 break
-            # add books_url_on_page to the all_books_url list
-            all_books_url.extend(books_url_on_page)
-            page_number += 1  # move to the next page and continue loop
 
-        return all_books_url  # return the list with all the books url in that category
-    else:
-        print("Could not retrieve Category url")
+            soup = BeautifulSoup(page.content, 'html.parser')
+            # parse through html code to find if a next button exists
+            next_button = soup.find("li", class_="next")
+            if next_button is None:
+                break  # if there is no next button on page, stop iteration
+            else:
+                page_number += 1  # proceed to next page to get more book urls
+        else:
+            break  # stop loop if page doesn't exist
+    return book_links
 
 
 # this function extracts all the information in a single book
@@ -118,9 +118,20 @@ def extract_book_information(url):
 
 
 def main():
-    category_url = "https://books.toscrape.com/catalogue/category/books/sequential-art_5/index.html"
-    books_in_category = books_url_category(category_url)
+    # category_url = "https://books.toscrape.com/catalogue/category/books/sequential-art_5/index.html"
+    # books_in_category = books_url_category(category_url)
 
+    main_url = "https://books.toscrape.com/index.html"
+    all_categories = extract_all_categories(main_url)
+
+    all_books_found = {}
+    for name, url in all_categories.items():
+        all_books_found[name] = books_url_category(url)
+
+    for k, v in all_books_found.items():
+        print(k, len(v))
+
+    '''
     column_headers = [
         "product_page_url",
         "universal_product_code",
@@ -144,6 +155,8 @@ def main():
             book_data = extract_book_information(book_url)
             if book_data is not None:
                 writer.writerow(book_data)
+    '''
+
 
 if __name__ == "__main__":
     main()

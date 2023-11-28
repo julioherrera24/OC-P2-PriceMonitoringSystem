@@ -1,9 +1,10 @@
+import os
 from requests import get
 from bs4 import BeautifulSoup
 import csv
 
 
-def extract_all_categories(url):   # this function will extract all categories available
+def extract_all_categories(url):  # this function will extract all categories available
     page = get(url)
 
     if page.status_code == 200:
@@ -11,15 +12,13 @@ def extract_all_categories(url):   # this function will extract all categories a
         # scrapes all categories available in the page, including name and url
         all_categories = soup.find("div", class_="side_categories").find_all("a")
 
-        categories = {}   # dictionary that will hold keys = categories, values = url
-        for category in all_categories:   # loop through all_categories
-            category_name = category.text.strip()   # key = category_name
+        categories = {}  # dictionary that will hold keys = categories, values = url
+        for category in all_categories:  # loop through all_categories
+            category_name = category.text.strip()  # key = category_name
             category_url = url.rsplit("/", 1)[0] + "/" + category.get("href")  # value is url
             categories[category_name] = category_url
+
         return categories
-    else:
-        print("Could not retrieve the url page")
-        return None
 
 
 def extract_book_url_on_page(url):  # this function returns all of the book url on a category page
@@ -40,16 +39,14 @@ def extract_book_url_on_page(url):  # this function returns all of the book url 
             book_info.append(absolute_book_url)  # adds the url to the list
 
         return book_info  # returns the list of book URLs in the page
-    else:
-        return None
 
 
 # this function returns a list of all the books url in a category; in all pages
 def books_url_category(category_url):
-    base_url = category_url   # first page of category
-    next_page_url = category_url.rsplit("/", 1)[0]   # variable to use for the next pages
+    base_url = category_url  # first page of category
+    next_page_url = category_url.rsplit("/", 1)[0]  # variable to use for the next pages
     page_number = 1
-    book_links = []    # list to hold all of the book urls in category
+    book_links = []  # list to hold all of the book urls in category
 
     while True:  # iterate until a page does not contain the next button
         current_url = f"{next_page_url}/page-{page_number}.html" if page_number > 1 else base_url
@@ -85,77 +82,81 @@ def extract_book_information(url):
         # parse the HTML content using BS
         soup = BeautifulSoup(page.content, 'html.parser')
 
-        # gather the information about first book
+        # gather the information about the book
         product_page_url = url
-        universal_product_code = soup.find("th", string="UPC").find_next("td").string.strip()
-        book_title = soup.find("h1").string.strip()
-        price_including_tax = soup.find("th", string="Price (incl. tax)").find_next("td").string.strip()
-        price_excluding_tax = soup.find("th", string="Price (excl. tax)").find_next("td").string.strip()
-        quantity_available = soup.find("th", string="Availability").find_next("td").string.strip()
-        product_description = soup.find("div", id="product_description").find_next("p").string.strip()
-        category = soup.find("ul", class_="breadcrumb").find_all("li")[2].text.strip()
-        review_rating = soup.find("p", class_="star-rating")["class"][1]
-        image_url = soup.find("img")["src"]
+        universal_product_code = soup.find("th", string="UPC")
+        book_title = soup.find("h1")
+        price_including_tax = soup.find("th", string="Price (incl. tax)")
+        price_excluding_tax = soup.find("th", string="Price (excl. tax)")
+        quantity_available = soup.find("th", string="Availability")
+        product_description = soup.find("div", id="product_description")
+        category = soup.find("ul", class_="breadcrumb")
+        review_rating = soup.find("p", class_="star-rating")
+        image_url = soup.find("img")
 
-        # create a dictionary with the extracted information
         book_information = {
             "product_page_url": product_page_url,
-            "universal_product_code": universal_product_code,
-            "book_title": book_title,
-            "price_including_tax": price_including_tax,
-            "price_excluding_tax": price_excluding_tax,
-            "quantity_available": quantity_available,
-            "product_description": product_description,
-            "category": category,
-            "review_rating": review_rating,
-            "image_url": image_url
+            "universal_product_code": universal_product_code.find_next("td").string.strip()
+            if universal_product_code else "N/A",
+            "book_title": book_title.string.strip() if book_title else "N/A",
+            "price_including_tax": price_including_tax.find_next("td").string.strip() if price_including_tax else "N/A",
+            "price_excluding_tax": price_excluding_tax.find_next("td").string.strip() if price_excluding_tax else "N/A",
+            "quantity_available": quantity_available.find_next("td").string.strip() if quantity_available else "N/A",
+            "product_description": product_description.find_next("p").string.strip() if product_description else "N/A",
+            "category": category.find_all("li")[2].text.strip() if category else "N/A",
+            "review_rating": review_rating["class"][1] if review_rating else "N/A",
+            "image_url": image_url["src"] if image_url else "N/A"
         }
-        print("Successfully gathered information and written to 'book_information.csv'")
+
+        split_url = book_information["image_url"].rsplit("../", 1)[-1]
+        full_path = f"https://books.toscrape.com/{split_url}"
+        if image_url != "N/A":
+            response = get(full_path, stream=True)
+            if response.status_code == 200:
+                os.makedirs("book_images", exist_ok=True)
+                image_path = f"book_images/{book_information['book_title'].replace(':', '-').replace('/', '-')}.jpg"
+
+                with open(image_path, 'wb') as image_file:
+                    for chunk in response.iter_content(1024):
+                        image_file.write(chunk)
+            else:
+                print(f"Failed to download {book_information['book_title']} image")
+                return None
+        else:
+            print(f"No image available for {book_information['book_title']}")
+            return None
+
         return book_information
-    else:
-        print("Failed to gather information from book url")
-        return None
 
 
 def main():
-    # category_url = "https://books.toscrape.com/catalogue/category/books/sequential-art_5/index.html"
-    # books_in_category = books_url_category(category_url)
-
     main_url = "https://books.toscrape.com/index.html"
     all_categories = extract_all_categories(main_url)
 
-    all_books_found = {}
-    for name, url in all_categories.items():
-        all_books_found[name] = books_url_category(url)
+    for category_name, category_url in all_categories.items():
+        books_in_category = books_url_category(category_url)
+        column_headers = [
+            "product_page_url",
+            "universal_product_code",
+            "book_title",
+            "price_including_tax",
+            "price_excluding_tax",
+            "quantity_available",
+            "product_description",
+            "category",
+            "review_rating",
+            "image_url"
+        ]
 
-    for k, v in all_books_found.items():
-        print(k, len(v))
+        csv_filename = f"{category_name}_book_information.csv"
+        with open(csv_filename, "w", newline="") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=column_headers)
+            writer.writeheader()
 
-    '''
-    column_headers = [
-        "product_page_url",
-        "universal_product_code",
-        "book_title",
-        "price_including_tax",
-        "price_excluding_tax",
-        "quantity_available",
-        "product_description",
-        "category",
-        "review_rating",
-        "image_url"
-    ]
-
-    # Writing to a CSV file using a dictionary
-    with open("book_information.csv", "w", newline="") as csvfile:
-
-        writer = csv.DictWriter(csvfile, fieldnames=column_headers)
-        writer.writeheader()
-
-        for book_url in books_in_category:
-            book_data = extract_book_information(book_url)
-            if book_data is not None:
-                writer.writerow(book_data)
-    '''
+            for book_url in books_in_category:
+                book_data = extract_book_information(book_url)
+                if book_data:
+                    writer.writerow(book_data)
 
 
 if __name__ == "__main__":

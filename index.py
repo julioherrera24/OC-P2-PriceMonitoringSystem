@@ -1,7 +1,7 @@
-import os
 from requests import get
 from bs4 import BeautifulSoup
 import csv
+import os
 
 
 def extract_all_categories(url):  # this function will extract all categories available
@@ -85,7 +85,7 @@ def extract_book_information(url):
         # gather the information about the book
         product_page_url = url
         universal_product_code = soup.find("th", string="UPC")
-        book_title = soup.find("h1")
+        book_title = soup.find("div", class_="col-sm-6 product_main")
         price_including_tax = soup.find("th", string="Price (incl. tax)")
         price_excluding_tax = soup.find("th", string="Price (excl. tax)")
         quantity_available = soup.find("th", string="Availability")
@@ -98,7 +98,7 @@ def extract_book_information(url):
             "product_page_url": product_page_url,
             "universal_product_code": universal_product_code.find_next("td").string.strip()
             if universal_product_code else "N/A",
-            "book_title": book_title.string.strip() if book_title else "N/A",
+            "book_title": book_title.find("h1").text.strip() if book_title else "N/A",
             "price_including_tax": price_including_tax.find_next("td").string.strip() if price_including_tax else "N/A",
             "price_excluding_tax": price_excluding_tax.find_next("td").string.strip() if price_excluding_tax else "N/A",
             "quantity_available": quantity_available.find_next("td").string.strip() if quantity_available else "N/A",
@@ -110,11 +110,15 @@ def extract_book_information(url):
 
         split_url = book_information["image_url"].rsplit("../", 1)[-1]
         full_path = f"https://books.toscrape.com/{split_url}"
+
+        chars_to_replace = ["/", "\\", '"', ":", "#"]
+
         if image_url != "N/A":
             response = get(full_path, stream=True)
             if response.status_code == 200:
                 os.makedirs("book_images", exist_ok=True)
-                image_path = f"book_images/{book_information['book_title'].replace(':', '-').replace('/', '-')}.jpg"
+                image_path = f"book_images/{book_information['universal_product_code']}_\
+                            {book_information['book_title'].replace('/', '-')}.jpg"
 
                 with open(image_path, 'wb') as image_file:
                     for chunk in response.iter_content(1024):
